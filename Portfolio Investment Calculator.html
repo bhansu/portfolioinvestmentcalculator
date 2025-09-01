@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- XLSX Library for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.17.4/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+        .hidden {
+            display: none;
+        }
+        .lineage-table-container {
+            overflow-x: auto;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .lineage-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #ffffff;
+            font-size: 0.875rem;
+        }
+        .lineage-table th, .lineage-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .lineage-table th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .lineage-table tr:last-child td {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Custom Modal for Alerts (Replaces alert() and confirm()) -->
+    <div id="message-box" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white p-6 rounded-xl shadow-xl max-w-sm w-full space-y-4">
+            <p id="message-text" class="text-center text-gray-800 font-medium"></p>
+            <button id="message-close" class="w-full px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-bold transition-colors">OK</button>
+        </div>
+    </div>
+
+    <div class="container bg-white p-6 md:p-10 rounded-xl shadow-2xl space-y-8">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-center text-gray-800">Investment Calculator</h1>
+        <p class="text-center text-gray-600">Estimate your future investment value, returns, and net value after taxes and expenses.</p>
+
+        <div class="flex justify-center mb-6">
+            <button id="lumpsum-tab" class="px-6 py-2 text-sm md:text-base font-semibold text-gray-800 bg-blue-100 rounded-l-xl transition-colors duration-200">Lump Sum</button>
+            <button id="sip-tab" class="px-6 py-2 text-sm md:text-base font-semibold text-gray-500 bg-gray-200 transition-colors duration-200">Monthly SIP</button>
+            <button id="portfolio-tab" class="px-6 py-2 text-sm md:text-base font-semibold text-gray-500 bg-gray-200 rounded-r-xl transition-colors duration-200">Portfolio</button>
+        </div>
+
+        <!-- Single Investment Calculator Section -->
+        <div id="single-calculator-section" class="space-y-6">
+            <div id="calculator-form" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="input-group">
+                        <label for="investment-amount" class="text-gray-700 font-medium">Investment Amount (₹)</label>
+                        <input type="number" id="investment-amount" placeholder="e.g., 50000" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="input-group">
+                        <label for="fund-type" class="text-gray-700 font-medium">Fund Type</label>
+                        <select id="fund-type" class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="equity">Equity Funds</option>
+                            <option value="elss">ELSS</option>
+                            <option value="debt">Debt/Non-Equity Funds</option>
+                            <option value="gold-etf">Gold ETF</option>
+                            <option value="fixed-deposit">Fixed Deposit</option>
+                        </select>
+                    </div>
+                    
+                    <div id="cagr-multi-fields" class="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
+                        <div class="input-group">
+                            <label for="cagr-1" class="text-gray-700 font-medium">1 Year CAGR (%)</label>
+                            <input type="number" id="cagr-1" placeholder="e.g., 12" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="input-group">
+                            <label for="cagr-3" class="text-gray-700 font-medium">3 Year CAGR (%)</label>
+                            <input type="number" id="cagr-3" placeholder="e.g., 10" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="input-group">
+                            <label for="cagr-5" class="text-gray-700 font-medium">5 Year CAGR (%)</label>
+                            <input type="number" id="cagr-5" placeholder="e.g., 8" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="years" class="text-gray-700 font-medium">Investment Period (Years)</label>
+                        <input type="number" id="years" placeholder="e.g., 5" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="input-group hidden" id="cagr-single-field">
+                        <label for="cagr-single" class="text-gray-700 font-medium">Expected CAGR (%)</label>
+                        <input type="number" id="cagr-single" placeholder="e.g., 10" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="input-group hidden" id="interest-rate-field">
+                        <label for="interest-rate" class="text-gray-700 font-medium">Interest Rate (%)</label>
+                        <input type="number" id="interest-rate" placeholder="e.g., 7.5" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="exit-load-percentage" class="text-gray-700 font-medium">Exit Load (%)</label>
+                        <input type="number" id="exit-load-percentage" placeholder="e.g., 1" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="exit-load-duration" class="text-gray-700 font-medium">Exit Load Duration (months)</label>
+                        <input type="number" id="exit-load-duration" placeholder="e.g., 12" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="input-group hidden" id="tax-slab-group">
+                        <label for="tax-slab" class="text-gray-700 font-medium">Your Tax Slab Rate (%)</label>
+                        <input type="number" id="tax-slab" placeholder="e.g., 30" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="input-group hidden" id="step-up-group">
+                        <label for="step-up-percentage" class="text-gray-700 font-medium">Step Up (%) (Optional)</label>
+                        <input type="number" id="step-up-percentage" placeholder="e.g., 5" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+            <button id="calculate-button" class="w-full px-4 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 shadow-lg mt-6">Calculate</button>
+
+            <div id="dynamic-results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-center mt-8">
+            </div>
+        </div>
+
+        <!-- Portfolio Calculator Section -->
+        <div id="portfolio-calculator-section" class="hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="input-group">
+                    <label for="portfolio-duration" class="text-gray-700 font-medium">Portfolio Duration (Years)</label>
+                    <input type="number" id="portfolio-duration" placeholder="e.g., 10" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="input-group">
+                    <label for="portfolio-tax-slab" class="text-gray-700 font-medium">Your Tax Slab Rate (%)</label>
+                    <input type="number" id="portfolio-tax-slab" placeholder="e.g., 30" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <h3 class="text-lg md:text-xl font-bold text-gray-800">Add an Investment to your Portfolio</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="input-group md:col-span-2">
+                        <label for="portfolio-fund-name" class="text-gray-700 font-medium text-sm">Fund Name</label>
+                        <input type="text" id="portfolio-fund-name" placeholder="e.g., HDFC Flexi Cap Fund" class="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="input-group">
+                        <label for="portfolio-fund-type" class="text-gray-700 font-medium text-sm">Fund Type</label>
+                        <select id="portfolio-fund-type" class="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="equity">Equity Funds</option>
+                            <option value="elss">ELSS</option>
+                            <option value="debt">Debt/Non-Equity Funds</option>
+                            <option value="gold-etf">Gold ETF</option>
+                            <option value="fixed-deposit">Fixed Deposit</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="portfolio-contribution-group">
+                        <label for="portfolio-monthly-contribution" class="text-gray-700 font-medium text-sm">Monthly Contribution (₹)</label>
+                        <input type="number" id="portfolio-monthly-contribution" placeholder="e.g., 5000" class="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="input-group hidden" id="portfolio-lumpsum-group">
+                        <label for="portfolio-lumpsum-amount" class="text-gray-700 font-medium text-sm">Amount (₹)</label>
+                        <input type="number" id="portfolio-lumpsum-amount" placeholder="e.g., 50000" class="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="input-group" id="portfolio-cagr-group">
+                        <label for="portfolio-cagr" class="text-gray-700 font-medium text-sm">Expected CAGR (%)</label>
+                        <input type="number" id="portfolio-cagr" placeholder="e.g., 12" class="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="input-group hidden" id="portfolio-interest-group">
+                        <label for="portfolio-interest-rate" class="text-gray-700 font-medium text-sm">Interest Rate (%)</label>
+                        <input type="number" id="portfolio-interest-rate" placeholder="e.g., 7.5" class="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <!-- Added step up field for portfolio section -->
+                    <div class="input-group hidden" id="portfolio-step-up-group">
+                        <label for="portfolio-step-up-percentage" class="text-gray-700 font-medium text-sm">Step Up (%) (Optional)</label>
+                        <input type="number" id="portfolio-step-up-percentage" placeholder="e.g., 5" class="w-full px-4 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div class="flex items-end">
+                        <button id="add-to-portfolio" class="w-full px-4 py-2 rounded-lg font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors duration-200">Add Fund</button>
+                    </div>
+                </div>
+            </div>
+
+            <ul id="portfolio-list" class="space-y-4">
+                <!-- Portfolio items will be dynamically added here -->
+            </ul>
+
+            <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mt-6">
+                <button id="calculate-portfolio-button" class="w-full md:w-1/3 px-4 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 shadow-lg">Calculate Portfolio</button>
+                <button id="export-excel-button" class="w-full md:w-1/3 px-4 py-4 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 transition-colors duration-200 shadow-lg">Export as Excel</button>
+                <button id="generate-lineage-button" class="w-full md:w-1/3 px-4 py-4 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700 transition-colors duration-200 shadow-lg">Generate Portfolio Lineage</button>
+            </div>
+
+
+            <div id="portfolio-results" class="grid grid-cols-1 md:grid-cols-2 gap-6 text-center mt-8">
+            </div>
+
+            <div id="portfolio-breakdown-section" class="space-y-8 mt-10">
+                <!-- Individual fund breakdowns will be dynamically added here -->
+            </div>
+            
+            <div id="portfolio-lineage-section" class="mt-10 hidden">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">Portfolio Growth Lineage</h2>
+                <div id="portfolio-lineage-table" class="lineage-table-container">
+                    <!-- Lineage table will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Laws Description -->
+        <div id="tax-details" class="hidden mt-8 p-6 bg-gray-50 rounded-lg shadow-inner">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Calculation Details & Deductions</h2>
+            <div id="calculation-description" class="text-gray-700"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM element references
+            const lumpsumTab = document.getElementById('lumpsum-tab');
+            const sipTab = document.getElementById('sip-tab');
+            const portfolioTab = document.getElementById('portfolio-tab');
+            const singleCalculatorSection = document.getElementById('single-calculator-section');
+            const portfolioCalculatorSection = document.getElementById('portfolio-calculator-section');
+
+            const investmentAmountInput = document.getElementById('investment-amount');
+            const fundTypeSelect = document.getElementById('fund-type');
+            const cagrMultiFields = document.getElementById('cagr-multi-fields');
+            const cagr1Input = document.getElementById('cagr-1');
+            const cagr3Input = document.getElementById('cagr-3');
+            const cagr5Input = document.getElementById('cagr-5');
+            const cagrSingleField = document.getElementById('cagr-single-field');
+            const cagrSingleInput = document.getElementById('cagr-single');
+            const yearsInput = document.getElementById('years');
+            const interestRateField = document.getElementById('interest-rate-field');
+            const interestRateInput = document.getElementById('interest-rate');
+            const exitLoadPercentageInput = document.getElementById('exit-load-percentage');
+            const exitLoadDurationInput = document.getElementById('exit-load-duration');
+            const taxSlabGroup = document.getElementById('tax-slab-group');
+            const taxSlabInput = document.getElementById('tax-slab');
+            const stepUpGroup = document.getElementById('step-up-group');
+            const stepUpPercentageInput = document.getElementById('step-up-percentage');
+            const dynamicResultsContainer = document.getElementById('dynamic-results');
+            const taxDetailsElem = document.getElementById('tax-details');
+            const calculationDescriptionElem = document.getElementById('calculation-description');
+            const calculateButton = document.getElementById('calculate-button');
+            
+            // Custom message box elements
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            const messageCloseButton = document.getElementById('message-close');
+
+            // Portfolio elements
+            const portfolioDurationInput = document.getElementById('portfolio-duration');
+            const portfolioTaxSlabInput = document.getElementById('portfolio-tax-slab');
+            const portfolioFundNameInput = document.getElementById('portfolio-fund-name');
+            const portfolioFundTypeSelect = document.getElementById('portfolio-fund-type');
+            const portfolioContributionGroup = document.getElementById('portfolio-contribution-group');
+            const portfolioMonthlyContributionInput = document.getElementById('portfolio-monthly-contribution');
+            const portfolioLumpsumGroup = document.getElementById('portfolio-lumpsum-group');
+            const portfolioLumpsumAmountInput = document.getElementById('portfolio-lumpsum-amount');
+            const portfolioCagrGroup = document.getElementById('portfolio-cagr-group');
+            const portfolioCagrInput = document.getElementById('portfolio-cagr');
+            const portfolioInterestGroup = document.getElementById('portfolio-interest-group');
+            const portfolioInterestRateInput = document.getElementById('portfolio-interest-rate');
+            const portfolioStepUpGroup = document.getElementById('portfolio-step-up-group'); // New element
+            const portfolioStepUpPercentageInput = document.getElementById('portfolio-step-up-percentage'); // New element
+            const addToPortfolioButton = document.getElementById('add-to-portfolio');
+            const portfolioList = document.getElementById('portfolio-list');
+            const calculatePortfolioButton = document.getElementById('calculate-portfolio-button');
+            const exportExcelButton = document.getElementById('export-excel-button');
+            const generateLineageButton = document.getElementById('generate-lineage-button');
+            const portfolioResultsContainer = document.getElementById('portfolio-results');
+            const portfolioBreakdownSection = document.getElementById('portfolio-breakdown-section');
+            const portfolioLineageSection = document.getElementById('portfolio-lineage-section');
+            const portfolioLineageTable = document.getElementById('portfolio-lineage-table');
+            
+            let isSIP = false;
+            let useSingleCAGR = false;
+            let portfolio = [];
+            let portfolioResults = {};
+
+            // Function to display custom alert messages
+            const alertMessage = (message) => {
+                messageText.textContent = message;
+                messageBox.classList.remove('hidden');
+            };
+            messageCloseButton.addEventListener('click', () => {
+                messageBox.classList.add('hidden');
+            });
+
+            const formatCurrency = (amount) => {
+                if (typeof amount === 'number' && !isNaN(amount)) {
+                    return `₹ ${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+                }
+                return `₹ 0`;
+            };
+            
+            const getTaxDescription = (fundType) => {
+                switch (fundType) {
+                    case 'equity':
+                    case 'elss':
+                        return `
+                            <p class="font-bold">Tax Laws Applied:</p>
+                            <ul class="list-disc list-inside space-y-1 text-sm mt-1">
+                                <li>
+                                    <strong class="font-semibold">Short-Term Capital Gains (STCG):</strong> If holding period is **12 months or less**, gains are taxed at a flat rate of **20%**.
+                                <li>
+                                    <strong class="font-semibold">Long-Term Capital Gains (LTCG):</strong> If holding period is **more than 12 months**, gains up to **₹1.25 Lakh are exempt**. Gains over this are taxed at **12.5%**.
+                                </li>
+                            </ul>
+                        `;
+                    case 'debt':
+                        return `
+                            <p class="font-bold">Tax Laws Applied:</p>
+                            <ul class="list-disc list-inside space-y-1 text-sm mt-1">
+                                <li>
+                                    All gains are added to your income and taxed according to your personal tax slab rate.
+                                </li>
+                            </ul>
+                        `;
+                    case 'gold-etf':
+                        return `
+                            <p class="font-bold">Tax Laws Applied:</p>
+                            <ul class="list-disc list-inside space-y-1 text-sm mt-1">
+                                <li>
+                                    <strong class="font-semibold">Short-Term Capital Gains (STCG):</strong> If holding period is **12 months or less**, gains are taxed at your personal tax slab rate.
+                                </li>
+                                <li>
+                                    <strong class="font-semibold">Long-Term Capital Gains (LTCG):</strong> If holding period is **more than 12 months**, gains are taxed at a flat rate of **12.5%**.
+                                </li>
+                            </ul>
+                        `;
+                    case 'fixed-deposit':
+                        return `
+                            <p class="font-bold">Tax Laws Applied:</p>
+                            <ul class="list-disc list-inside space-y-1 text-sm mt-1">
+                                <li>
+                                    The interest earned is added to your income and taxed **annually** according to your personal tax slab rate.
+                                </li>
+                            </ul>
+                        `;
+                    default:
+                        return '';
+                }
+            };
+            
+            const toggleSingleUIFields = () => {
+                const fundType = fundTypeSelect.value;
+                const years = parseFloat(yearsInput.value);
+                useSingleCAGR = !isNaN(years) && years > 0;
+
+                // Toggle CAGR vs Interest Rate fields
+                if (fundType === 'fixed-deposit') {
+                    cagrMultiFields.classList.add('hidden');
+                    cagrSingleField.classList.add('hidden');
+                    interestRateField.classList.remove('hidden');
+                    investmentAmountInput.placeholder = "e.g., 50000 (One Time)";
+                    document.querySelector('label[for="investment-amount"]').textContent = "Investment Amount (₹)";
+                } else {
+                    interestRateField.classList.add('hidden');
+                    if (useSingleCAGR) {
+                        cagrMultiFields.classList.add('hidden');
+                        cagrSingleField.classList.remove('hidden');
+                    } else {
+                        cagrMultiFields.classList.remove('hidden');
+                        cagrSingleField.classList.add('hidden');
+                    }
+                    if (isSIP) {
+                        investmentAmountInput.placeholder = "e.g., 5000 (Monthly SIP)";
+                        document.querySelector('label[for="investment-amount"]').textContent = "Monthly SIP Amount (₹)";
+                    } else {
+                        investmentAmountInput.placeholder = "e.g., 50000 (Lump Sum)";
+                        document.querySelector('label[for="investment-amount"]').textContent = "Lump Sum Amount (₹)";
+                    }
+                }
+
+                // Toggle Tax Slab and Step Up fields based on fund and SIP status
+                if (fundType === 'debt' || fundType === 'gold-etf' || fundType === 'fixed-deposit') {
+                    taxSlabGroup.classList.remove('hidden');
+                } else {
+                    taxSlabGroup.classList.add('hidden');
+                }
+
+                if (isSIP && (fundType === 'equity' || fundType === 'elss' || fundType === 'debt' || fundType === 'gold-etf')) {
+                    stepUpGroup.classList.remove('hidden');
+                } else {
+                    stepUpGroup.classList.add('hidden');
+                }
+            };
+
+            const togglePortfolioUIFields = () => {
+                const fundType = portfolioFundTypeSelect.value;
+                if (fundType === 'fixed-deposit') {
+                    portfolioContributionGroup.classList.add('hidden');
+                    portfolioLumpsumGroup.classList.remove('hidden');
+                    portfolioCagrGroup.classList.add('hidden');
+                    portfolioInterestGroup.classList.remove('hidden');
+                    portfolioStepUpGroup.classList.add('hidden');
+                } else {
+                    portfolioContributionGroup.classList.remove('hidden');
+                    portfolioLumpsumGroup.classList.add('hidden');
+                    portfolioCagrGroup.classList.remove('hidden');
+                    portfolioInterestGroup.classList.add('hidden');
+                    portfolioStepUpGroup.classList.remove('hidden');
+                }
+            };
+
+            const clearSingleCalculatorData = () => {
+                investmentAmountInput.value = '';
+                yearsInput.value = '';
+                cagr1Input.value = '';
+                cagr3Input.value = '';
+                cagr5Input.value = '';
+                cagrSingleInput.value = '';
+                interestRateInput.value = '';
+                taxSlabInput.value = '';
+                exitLoadPercentageInput.value = '';
+                exitLoadDurationInput.value = '';
+                stepUpPercentageInput.value = '';
+                dynamicResultsContainer.innerHTML = '';
+                taxDetailsElem.classList.add('hidden');
+            };
+
+            const getTaxAmount = (fundType, years, taxableGain, taxSlabRate) => {
+                if (taxableGain <= 0) return 0;
+                
+                switch (fundType) {
+                    case 'equity':
+                    case 'elss':
+                        if (years * 12 <= 12) { // STCG
+                            return taxableGain * 0.20; 
+                        } else { // LTCG
+                            const netTaxableGain = Math.max(0, taxableGain - 125000); 
+                            return netTaxableGain * 0.125;
+                        }
+                    case 'debt':
+                        return taxableGain * taxSlabRate;
+                    case 'gold-etf':
+                        if (years * 12 <= 12) { // STCG
+                            return taxableGain * taxSlabRate;
+                        } else { // LTCG
+                            return taxableGain * 0.125;
+                        }
+                    default:
+                        return 0;
+                }
+            };
+
+            const calculateFixedDepositReturns = (principal, years, interestRate, taxSlabRate) => {
+                let currentPrincipal = principal;
+                let totalTaxPaid = 0;
+                let totalInterestEarned = 0;
+
+                for (let year = 1; year <= years; year++) {
+                    const yearlyInterest = currentPrincipal * interestRate;
+                    const taxOnInterest = yearlyInterest * taxSlabRate;
+                    
+                    totalInterestEarned += yearlyInterest;
+                    totalTaxPaid += taxOnInterest;
+                    currentPrincipal += yearlyInterest;
+                }
+                
+                const futureValue = principal + totalInterestEarned;
+                const netValue = futureValue - totalTaxPaid;
+                const totalReturn = totalInterestEarned;
+                
+                return { futureValue, totalReturn, taxAmount: totalTaxPaid, netValue, totalInvested: principal, stampDutyAmount: 0, exitLoadAmount: 0 };
+            };
+            
+            const calculateReturns = (investment, years, cagr, isSIP, fundType, taxSlabRate, exitLoadPercentage, exitLoadDuration, stepUpPercentage) => {
+                let futureValue;
+                let totalInvested;
+                let stampDutyAmount = 0; 
+                let exitLoadAmount = 0;
+                let totalReturn = 0;
+                let taxAmount = 0;
+                let netValue = 0;
+
+                if (fundType === 'fixed-deposit') {
+                    return calculateFixedDepositReturns(investment, years, cagr, taxSlabRate);
+                }
+                
+                if (isSIP) {
+                    totalInvested = 0;
+                    futureValue = 0;
+                    const totalMonths = years * 12;
+                    let monthlyContribution = investment;
+                    const stepUpRate = (stepUpPercentage || 0) / 100;
+                    const monthlyRate = Math.pow(1 + cagr, 1/12) - 1;
+                    
+                    for (let month = 1; month <= totalMonths; month++) {
+                        futureValue = futureValue * (1 + monthlyRate) + monthlyContribution;
+                        totalInvested += monthlyContribution;
+                        
+                        if (stepUpRate > 0 && month % 12 === 0) {
+                            monthlyContribution = monthlyContribution * (1 + stepUpRate);
+                        }
+                    }
+                    stampDutyAmount = totalInvested * 0.00005;
+                    totalReturn = futureValue - totalInvested;
+                } else { // Lump Sum
+                    totalInvested = investment;
+                    futureValue = totalInvested;
+                    futureValue *= Math.pow(1 + cagr, years);
+                    stampDutyAmount = totalInvested * 0.00005;
+                    totalReturn = futureValue - totalInvested;
+                }
+            
+                taxAmount = getTaxAmount(fundType, years, totalReturn, taxSlabRate);
+                
+                if (exitLoadPercentage > 0 && exitLoadDuration > 0) {
+                    const investmentPeriodMonths = years * 12;
+                    if (investmentPeriodMonths <= exitLoadDuration) {
+                        exitLoadAmount = futureValue * (exitLoadPercentage / 100);
+                    }
+                }
+            
+                netValue = futureValue - taxAmount - stampDutyAmount - exitLoadAmount;
+            
+                return { futureValue, totalReturn, taxAmount, netValue, totalInvested, stampDutyAmount, exitLoadAmount };
+            };
+
+            const calculateYearlyReturns = (fund, year, taxSlabRate) => {
+                let yearlyInvested = 0;
+                let yearlyReturns = 0;
+                let yearlyTaxes = 0;
+                let futureValue = fund.futureValue;
+
+                if (fund.fundType === 'fixed-deposit') {
+                    // For Fixed Deposit, tax is applied annually
+                    const yearlyInterest = futureValue * (fund.interestRate / 100);
+                    yearlyTaxes = yearlyInterest * taxSlabRate;
+                    futureValue += yearlyInterest;
+                    yearlyInvested = 0; // No new investment
+                    yearlyReturns = yearlyInterest;
+                } else {
+                    // For other funds, taxes are not deducted annually
+                    let monthlyContribution = fund.monthlyContribution;
+                    if (fund.stepUpPercentage > 0) {
+                        monthlyContribution = fund.monthlyContribution * Math.pow(1 + (fund.stepUpPercentage / 100), year - 1);
+                    }
+                    yearlyInvested = monthlyContribution * 12;
+                    const monthlyRate = Math.pow(1 + (fund.cagr / 100), 1 / 12) - 1;
+                    
+                    let startOfYearValue = futureValue;
+                    for (let month = 1; month <= 12; month++) {
+                        futureValue = futureValue * (1 + monthlyRate) + monthlyContribution;
+                    }
+                    yearlyReturns = futureValue - startOfYearValue - yearlyInvested;
+                    yearlyTaxes = 0; // Tax is not applied annually for these funds
+                }
+                
+                return {
+                    futureValue,
+                    totalInvested: fund.totalInvested + yearlyInvested,
+                    totalReturn: fund.totalReturn + yearlyReturns,
+                    yearlyTaxes,
+                    yearlyInvested
+                };
+            };
+            
+            const updateResultsUI = (results, years) => {
+                const resultCard = `
+                    <div class="result-card bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">${years} Year Result</h3>
+                        <div class="grid grid-cols-2 gap-4 text-left">
+                            <div>
+                                <p class="text-lg font-semibold text-green-700">Future Value</p>
+                                <p class="text-xl font-bold text-green-900">${formatCurrency(results.futureValue)}</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-blue-700">Total Return</p>
+                                <p class="text-xl font-bold text-blue-900">${formatCurrency(results.totalReturn)}</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-gray-700">Stamp Duty</p>
+                                <p class="text-xl font-bold text-gray-900">${formatCurrency(results.stampDutyAmount)}</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-gray-700">Exit Load</p>
+                                <p class="text-xl font-bold text-gray-900">${formatCurrency(results.exitLoadAmount)}</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-red-700">Taxes</p>
+                                <p class="text-xl font-bold text-red-900">${formatCurrency(results.taxAmount)}</p>
+                            </div>
+                            <div class="col-span-2">
+                                <p class="text-lg font-semibold text-purple-700">Final Net Value</p>
+                                <p class="text-2xl font-bold text-purple-900">${formatCurrency(results.netValue)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                dynamicResultsContainer.innerHTML += resultCard;
+            };
+
+            const calculate = () => {
+                const investment = parseFloat(investmentAmountInput.value);
+                const years = parseFloat(yearsInput.value);
+                const fundType = fundTypeSelect.value;
+                const taxSlabRate = parseFloat(taxSlabInput.value) / 100;
+                const exitLoadPercentage = parseFloat(exitLoadPercentageInput.value);
+                const exitLoadDuration = parseFloat(exitLoadDurationInput.value);
+                const stepUpPercentage = parseFloat(stepUpPercentageInput.value) || 0; // Default to 0 if not entered
+
+                dynamicResultsContainer.innerHTML = '';
+                taxDetailsElem.classList.add('hidden');
+
+                // Core validation logic
+                if (isNaN(investment) || investment <= 0) {
+                    alertMessage("Please enter a valid investment amount.");
+                    return;
+                }
+
+                let yearsToCalculate;
+                if (isNaN(years) || years <= 0) {
+                    yearsToCalculate = [1, 3, 5];
+                } else {
+                    yearsToCalculate = [years];
+                }
+
+                let cagrSet = {};
+                if (fundType === 'fixed-deposit') {
+                    const interestRate = parseFloat(interestRateInput.value);
+                    if (isNaN(interestRate) || interestRate <= 0) {
+                        alertMessage("Please enter a valid interest rate.");
+                        return;
+                    }
+                    cagrSet.interestRate = interestRate;
+                } else if (!isNaN(years) && years > 0) { // Single year
+                    const singleCagr = parseFloat(cagrSingleInput.value);
+                    if (isNaN(singleCagr) || singleCagr <= 0) {
+                        alertMessage("Please enter a valid Expected CAGR.");
+                        return;
+                    }
+                    cagrSet.single = singleCagr;
+                } else { // Multi-year
+                    const cagr1 = parseFloat(cagr1Input.value);
+                    const cagr3 = parseFloat(cagr3Input.value);
+                    const cagr5 = parseFloat(cagr5Input.value);
+                    if (isNaN(cagr1) || isNaN(cagr3) || isNaN(cagr5)) {
+                        alertMessage("Please enter valid CAGR values for 1, 3, and 5 years.");
+                        return;
+                    }
+                    cagrSet.multi = { 1: cagr1, 3: cagr3, 5: cagr5 };
+                }
+
+                if ((fundType === 'debt' || fundType === 'gold-etf' || fundType === 'fixed-deposit') && isNaN(taxSlabRate)) {
+                    alertMessage("Please enter your tax slab rate.");
+                    return;
+                }
+                
+                const totalInvestedCard = `
+                    <div class="bg-white p-6 rounded-lg shadow-md md:col-span-2 lg:col-span-1">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Total Invested</h3>
+                        <p class="text-3xl font-bold text-blue-600">${formatCurrency(isSIP ? investment * 12 * yearsToCalculate[yearsToCalculate.length - 1] : investment)}</p>
+                    </div>
+                `;
+                dynamicResultsContainer.innerHTML += totalInvestedCard;
+
+                yearsToCalculate.forEach(y => {
+                    let cagrToUse;
+                    if (fundType === 'fixed-deposit') {
+                        cagrToUse = cagrSet.interestRate / 100;
+                    } else if (cagrSet.single) {
+                        cagrToUse = cagrSet.single / 100;
+                    } else {
+                        cagrToUse = cagrSet.multi[y] / 100;
+                    }
+                    const results = calculateReturns(investment, y, cagrToUse, isSIP, fundType, taxSlabRate, exitLoadPercentage, exitLoadDuration, stepUpPercentage);
+                    updateResultsUI(results, y);
+                });
+                
+                let taxDescription = getTaxDescription(fundType);
+                let taxAssumptions = `<p class="italic text-sm mt-2">*This calculation assumes your personal tax slab rate. Consult an expert for precise tax advice.</p>`;
+                if (fundType === 'equity' || fundType === 'elss') taxAssumptions = '';
+
+                let deductionsSummary = `
+                    <h3 class="font-bold mt-4">Summary of Deductions:</h3>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>
+                            <strong class="font-semibold">Stamp Duty:</strong> A 0.005% stamp duty is applied to your total invested amount. (Not applicable for Fixed Deposit)
+                        </li>
+                        <li>
+                            <strong class="font-semibold">Exit Load:</strong> This is a fee applied if you redeem your investment before the specified duration. The fee is a percentage of your final future value.
+                        </li>
+                        <li>
+                            <strong class="font-semibold">Capital Gains Tax:</strong> Tax on the gains from your investment is applied as per the rules below.
+                        </li>
+                    </ul>
+                `;
+                
+                calculationDescriptionElem.innerHTML = `
+                    <p class="mb-4">This calculator estimates your investment's future value based on the provided inputs.</p>
+                    <h3 class="font-bold">Expense Ratio & NAV:</h3>
+                    <p class="mb-4">The **expense ratio** is already factored into a mutual fund’s daily NAV. The **CAGR** you see is its **net return** after this daily deduction. Therefore, this calculator uses the provided CAGR values directly, as they already reflect the impact of the expense ratio. No additional deduction is needed from the final value.</p>
+                    ${deductionsSummary}
+                    <h3 class="font-bold mt-4">Tax Laws Applied:</h3>
+                    <p class="mb-2">The tax calculation is based on current Indian tax laws and the selected fund type.</p>
+                    ${taxDescription}
+                    ${taxAssumptions}
+                    <p class="text-gray-500 italic mt-4 text-sm">*Disclaimer: These calculations are for illustrative purposes only and do not account for other factors like Security Transaction Tax (STT) or changes in tax laws. Please consult a financial advisor for personalized advice.*</p>
+                `;
+                taxDetailsElem.classList.remove('hidden');
+            };
+
+            const updateSingleUI = () => {
+                // Update fund type options for SIP tab
+                const fixedDepositOption = fundTypeSelect.querySelector('option[value="fixed-deposit"]');
+                if (isSIP) {
+                    if (fixedDepositOption) fixedDepositOption.classList.add('hidden');
+                } else {
+                    if (fixedDepositOption) fixedDepositOption.classList.remove('hidden');
+                }
+                
+                // Update tab styles
+                if (isSIP) {
+                    lumpsumTab.classList.remove('bg-blue-100', 'text-gray-800');
+                    lumpsumTab.classList.add('bg-gray-200', 'text-gray-500');
+                    sipTab.classList.remove('bg-gray-200', 'text-gray-500');
+                    sipTab.classList.add('bg-blue-100', 'text-gray-800');
+                    portfolioTab.classList.remove('bg-blue-100', 'text-gray-800');
+                    portfolioTab.classList.add('bg-gray-200', 'text-gray-500');
+                    document.querySelector('label[for="investment-amount"]').textContent = "Monthly SIP Amount (₹)";
+                    investmentAmountInput.placeholder = "e.g., 5000 (Monthly SIP)";
+                    fundTypeSelect.value = 'equity'; // Set a default valid fund type for SIP
+                } else {
+                    sipTab.classList.remove('bg-blue-100', 'text-gray-500');
+                    sipTab.classList.add('bg-gray-200', 'text-gray-500');
+                    lumpsumTab.classList.remove('bg-gray-200', 'text-gray-500');
+                    lumpsumTab.classList.add('bg-blue-100', 'text-gray-800');
+                    document.querySelector('label[for="investment-amount"]').textContent = "Lump Sum Amount (₹)";
+                    investmentAmountInput.placeholder = "e.g., 50000 (Lump Sum)";
+                }
+                
+                toggleSingleUIFields();
+            };
+
+            const renderPortfolioList = () => {
+                portfolioList.innerHTML = '';
+                portfolio.forEach((fund, index) => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'flex justify-between items-center bg-gray-100 p-4 rounded-lg shadow-sm';
+                    let contributionDetails;
+                    if (fund.fundType === 'fixed-deposit') {
+                        contributionDetails = `₹${fund.lumpsumAmount} lumpsum @ ${fund.interestRate}% Interest Rate`;
+                    } else {
+                        contributionDetails = `₹${fund.monthlyContribution} / month @ ${fund.cagr}% CAGR`;
+                        if (fund.stepUpPercentage > 0) {
+                            contributionDetails += ` with ${fund.stepUpPercentage}% Step Up`;
+                        }
+                    }
+                    listItem.innerHTML = `
+                        <div class="flex-1 min-w-0">
+                            <span class="font-semibold text-gray-800">${fund.name || fund.fundType.toUpperCase()}</span>
+                            <span class="text-sm text-gray-600"> - ${contributionDetails}</span>
+                        </div>
+                        <button class="delete-fund text-red-500 hover:text-red-700 font-bold ml-4" data-index="${index}">Delete</button>
+                    `;
+                    portfolioList.appendChild(listItem);
+                });
+            };
+
+            const calculatePortfolio = () => {
+                const years = parseFloat(portfolioDurationInput.value);
+                const taxSlabRate = parseFloat(portfolioTaxSlabInput.value) / 100;
+                
+                portfolioResultsContainer.innerHTML = '';
+                portfolioBreakdownSection.innerHTML = '';
+                portfolioLineageSection.classList.add('hidden');
+                
+                portfolioResults = {
+                    totalInvested: 0,
+                    totalReturnsBeforeTax: 0,
+                    totalFutureValue: 0,
+                    redemptionTax: 0,
+                    fundBreakdowns: []
+                };
+
+                if (isNaN(years) || years <= 0) {
+                    alertMessage("Please enter a valid portfolio duration.");
+                    return;
+                }
+                if (portfolio.length === 0) {
+                    alertMessage("Please add at least one fund to your portfolio.");
+                    return;
+                }
+                
+                portfolio.forEach(fund => {
+                    let fundResults;
+                    if (fund.fundType === 'fixed-deposit') {
+                        fundResults = calculateFixedDepositReturns(fund.lumpsumAmount, years, fund.interestRate / 100, taxSlabRate);
+                    } else {
+                        fundResults = calculateReturns(fund.monthlyContribution, years, fund.cagr / 100, true, fund.fundType, taxSlabRate, 0, 0, fund.stepUpPercentage);
+                        portfolioResults.redemptionTax += fundResults.taxAmount;
+                    }
+                    
+                    portfolioResults.totalInvested += fundResults.totalInvested;
+                    portfolioResults.totalReturnsBeforeTax += fundResults.totalReturn;
+                    portfolioResults.totalFutureValue += fundResults.futureValue;
+                    
+                    portfolioResults.fundBreakdowns.push({
+                        ...fund,
+                        ...fundResults
+                    });
+
+                    const breakdownCard = `
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">${fund.name || fund.fundType.toUpperCase()} Breakdown</h3>
+                            <div class="grid grid-cols-2 gap-4 text-left">
+                                <div>
+                                    <p class="text-lg font-semibold text-gray-700">Total Invested</p>
+                                    <p class="text-xl font-bold text-gray-900">${formatCurrency(fundResults.totalInvested)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-lg font-semibold text-blue-700">Total Returns</p>
+                                    <p class="text-xl font-bold text-blue-900">${formatCurrency(fundResults.totalReturn)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-lg font-semibold text-green-700">Future Value</p>
+                                    <p class="text-xl font-bold text-green-900">${formatCurrency(fundResults.futureValue)}</p>
+                                </div>
+                                <div>
+                                    <p class="text-lg font-semibold text-red-700">Taxes</p>
+                                    <p class="text-xl font-bold text-red-900">${formatCurrency(fundResults.taxAmount)}</p>
+                                </div>
+                                <div class="col-span-2">
+                                    <p class="text-lg font-semibold text-purple-700">Final Net Value</p>
+                                    <p class="text-2xl font-bold text-purple-900">${formatCurrency(fundResults.netValue)}</p>
+                                </div>
+                                <div class="col-span-2 mt-4 text-sm text-gray-600">
+                                    ${getTaxDescription(fund.fundType)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    portfolioBreakdownSection.innerHTML += breakdownCard;
+                });
+                
+                const totalFinalValue = portfolioResults.totalFutureValue - portfolioResults.redemptionTax;
+
+                const resultsCard = `
+                    <div class="result-card bg-white p-6 rounded-lg shadow-md col-span-1 md:col-span-2">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Portfolio Summary</h3>
+                        <div class="grid grid-cols-2 gap-4 text-left">
+                            <div>
+                                <p class="text-lg font-semibold text-gray-700">Total Invested</p>
+                                <p class="text-xl font-bold text-gray-900">${formatCurrency(portfolioResults.totalInvested)}</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-blue-700">Total Returns (Before Tax)</p>
+                                <p class="text-xl font-bold text-blue-900">${formatCurrency(portfolioResults.totalReturnsBeforeTax)}</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-green-700">Future Value</p>
+                                <p class="text-xl font-bold text-green-900">${formatCurrency(portfolioResults.totalFutureValue)}</p>
+                            </div>
+                            <div>
+                                <p class="text-lg font-semibold text-red-700">Redemption Tax</p>
+                                <p class="text-xl font-bold text-red-900">${formatCurrency(portfolioResults.redemptionTax)}</p>
+                            </div>
+                            <div class="col-span-2">
+                                <p class="text-lg font-semibold text-purple-700">Final Net Value</p>
+                                <p class="text-2xl font-bold text-purple-900">${formatCurrency(totalFinalValue)}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                portfolioResultsContainer.innerHTML += resultsCard;
+            };
+
+            const exportToExcel = () => {
+                if (portfolio.length === 0 || Object.keys(portfolioResults).length === 0) {
+                    alertMessage("Please calculate your portfolio first before exporting.");
+                    return;
+                }
+
+                const wb = XLSX.utils.book_new();
+
+                // Create Portfolio Summary Sheet
+                const summaryData = [
+                    ["Portfolio Summary"],
+                    [],
+                    ["Total Invested", "Total Returns (Before Tax)", "Future Value", "Redemption Tax", "Final Net Value"],
+                    [
+                        portfolioResults.totalInvested,
+                        portfolioResults.totalReturnsBeforeTax,
+                        portfolioResults.totalFutureValue,
+                        portfolioResults.redemptionTax,
+                        portfolioResults.totalFutureValue - portfolioResults.redemptionTax
+                    ]
+                ];
+                const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(wb, wsSummary, "Portfolio Summary");
+
+                // Create Fund Breakdown Sheet
+                const breakdownHeader = [
+                    "Fund Name", "Fund Type", "Initial Investment (SIP/Lump Sum)", "Monthly Contribution", "Lump Sum Amount", 
+                    "CAGR (%)", "Interest Rate (%)", "Step Up (%)", "Total Invested", "Future Value", 
+                    "Total Return", "Taxes", "Final Net Value"
+                ];
+                const breakdownData = portfolioResults.fundBreakdowns.map(fund => {
+                    return [
+                        fund.name || fund.fundType.toUpperCase(),
+                        fund.fundType,
+                        fund.fundType === 'fixed-deposit' ? 'Lump Sum' : 'Monthly SIP',
+                        fund.monthlyContribution || "",
+                        fund.lumpsumAmount || "",
+                        fund.cagr || "",
+                        fund.interestRate || "",
+                        fund.stepUpPercentage || "",
+                        fund.totalInvested,
+                        fund.futureValue,
+                        fund.totalReturn,
+                        fund.taxAmount,
+                        fund.netValue
+                    ];
+                });
+
+                const wsBreakdown = XLSX.utils.aoa_to_sheet([breakdownHeader, ...breakdownData]);
+                XLSX.utils.book_append_sheet(wb, wsBreakdown, "Fund Breakdown");
+
+                XLSX.writeFile(wb, "Investment_Portfolio_Report.xlsx");
+            };
+
+            const generatePortfolioLineage = () => {
+                const years = parseFloat(portfolioDurationInput.value);
+                const taxSlabRate = parseFloat(portfolioTaxSlabInput.value) / 100;
+
+                if (isNaN(years) || years <= 0) {
+                    alertMessage("Please enter a valid portfolio duration.");
+                    return;
+                }
+                if (portfolio.length === 0) {
+                    alertMessage("Please add at least one fund to your portfolio.");
+                    return;
+                }
+
+                portfolioLineageSection.classList.remove('hidden');
+                portfolioLineageTable.innerHTML = '';
+                
+                let lineageData = [];
+                let tempFunds = JSON.parse(JSON.stringify(portfolio)).map(fund => {
+                    fund.totalInvested = fund.lumpsumAmount || 0;
+                    fund.totalReturn = 0;
+                    fund.taxAmount = 0;
+                    fund.futureValue = fund.lumpsumAmount || 0;
+                    return fund;
+                });
+
+                let totalNonFDTax = 0;
+
+                for (let year = 1; year <= years; year++) {
+                    let yearlyInvested = 0;
+                    let yearlyReturns = 0;
+                    let yearlyTaxes = 0;
+                    let yearlyFutureValue = 0;
+
+                    tempFunds = tempFunds.map(fund => {
+                        const updatedFund = calculateYearlyReturns(fund, year, taxSlabRate);
+                        
+                        yearlyInvested += updatedFund.yearlyInvested;
+                        yearlyReturns += updatedFund.totalReturn - fund.totalReturn;
+                        yearlyTaxes += updatedFund.yearlyTaxes;
+                        yearlyFutureValue += updatedFund.futureValue;
+                        
+                        // Update the fund state for the next year
+                        fund.totalInvested = updatedFund.totalInvested;
+                        fund.totalReturn = updatedFund.totalReturn;
+                        fund.futureValue = updatedFund.futureValue;
+                        
+                        return fund;
+                    });
+                    
+                    lineageData.push({
+                        year,
+                        invested: yearlyInvested,
+                        returns: yearlyReturns,
+                        taxes: yearlyTaxes,
+                        futureValue: yearlyFutureValue
+                    });
+                }
+                
+                // Calculate and apply taxes for non-FD funds at the end
+                tempFunds.forEach(fund => {
+                    if (fund.fundType !== 'fixed-deposit') {
+                        const finalTax = getTaxAmount(fund.fundType, years, fund.totalReturn, taxSlabRate);
+                        totalNonFDTax += finalTax;
+                    }
+                });
+                
+                // Apply the final non-FD taxes to the last year
+                if (lineageData.length > 0) {
+                    const lastYearIndex = lineageData.length - 1;
+                    lineageData[lastYearIndex].taxes += totalNonFDTax;
+                    lineageData[lastYearIndex].futureValue -= totalNonFDTax;
+                }
+
+                const table = document.createElement('table');
+                table.classList.add('lineage-table');
+                
+                const header = table.createTHead();
+                const headerRow = header.insertRow();
+                ['Year', 'Amount Invested', 'Total Returns', 'Total Taxes', 'Net Portfolio Value'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    headerRow.appendChild(th);
+                });
+
+                const body = table.createTBody();
+                lineageData.forEach(data => {
+                    const row = body.insertRow();
+                    row.insertCell().textContent = data.year;
+                    row.insertCell().textContent = formatCurrency(data.invested);
+                    row.insertCell().textContent = formatCurrency(data.returns);
+                    row.insertCell().textContent = formatCurrency(data.taxes);
+                    row.insertCell().textContent = formatCurrency(data.futureValue);
+                });
+
+                portfolioLineageTable.appendChild(table);
+            };
+
+            // Event listeners for tabs
+            lumpsumTab.addEventListener('click', () => {
+                isSIP = false;
+                singleCalculatorSection.classList.remove('hidden');
+                portfolioCalculatorSection.classList.add('hidden');
+                lumpsumTab.classList.remove('bg-gray-200', 'text-gray-500');
+                lumpsumTab.classList.add('bg-blue-100', 'text-gray-800');
+                sipTab.classList.remove('bg-blue-100', 'text-gray-800');
+                sipTab.classList.add('bg-gray-200', 'text-gray-500');
+                portfolioTab.classList.remove('bg-blue-100', 'text-gray-800');
+                portfolioTab.classList.add('bg-gray-200', 'text-gray-500');
+                updateSingleUI();
+                clearSingleCalculatorData();
+            });
+            sipTab.addEventListener('click', () => {
+                isSIP = true;
+                singleCalculatorSection.classList.remove('hidden');
+                portfolioCalculatorSection.classList.add('hidden');
+                lumpsumTab.classList.remove('bg-blue-100', 'text-gray-800');
+                lumpsumTab.classList.add('bg-gray-200', 'text-gray-500');
+                sipTab.classList.remove('bg-gray-200', 'text-gray-500');
+                sipTab.classList.add('bg-blue-100', 'text-gray-800');
+                portfolioTab.classList.remove('bg-blue-100', 'text-gray-800');
+                portfolioTab.classList.add('bg-gray-200', 'text-gray-500');
+                updateSingleUI();
+                clearSingleCalculatorData();
+            });
+            portfolioTab.addEventListener('click', () => {
+                singleCalculatorSection.classList.add('hidden');
+                portfolioCalculatorSection.classList.remove('hidden');
+                lumpsumTab.classList.remove('bg-blue-100', 'text-gray-800');
+                lumpsumTab.classList.add('bg-gray-200', 'text-gray-500');
+                sipTab.classList.remove('bg-blue-100', 'text-gray-800');
+                sipTab.classList.add('bg-gray-200', 'text-gray-500');
+                portfolioTab.classList.remove('bg-gray-200', 'text-gray-500');
+                portfolioTab.classList.add('bg-blue-100', 'text-gray-800');
+                clearSingleCalculatorData();
+                portfolioResultsContainer.innerHTML = '';
+            });
+
+            fundTypeSelect.addEventListener('change', () => {
+                toggleSingleUIFields();
+                clearSingleCalculatorData();
+            });
+
+            yearsInput.addEventListener('input', () => {
+                toggleSingleUIFields();
+            });
+            
+            portfolioFundTypeSelect.addEventListener('change', () => {
+                togglePortfolioUIFields();
+            });
+
+            // Single Calculator actions
+            calculateButton.addEventListener('click', calculate);
+
+            // Portfolio Calculator actions
+            addToPortfolioButton.addEventListener('click', () => {
+                const fundName = portfolioFundNameInput.value.trim() || null;
+                const fundType = portfolioFundTypeSelect.value;
+                let newFund = { name: fundName };
+
+                if (fundType === 'fixed-deposit') {
+                    const lumpsumAmount = parseFloat(portfolioLumpsumAmountInput.value);
+                    const interestRate = parseFloat(portfolioInterestRateInput.value);
+                    if (isNaN(lumpsumAmount) || lumpsumAmount <= 0) {
+                        alertMessage("Please enter a valid lumpsum amount.");
+                        return;
+                    }
+                    if (isNaN(interestRate) || interestRate <= 0) {
+                        alertMessage("Please enter a valid interest rate.");
+                        return;
+                    }
+                    newFund = { ...newFund, fundType, lumpsumAmount, interestRate };
+                    portfolioLumpsumAmountInput.value = '';
+                    portfolioInterestRateInput.value = '';
+                } else {
+                    const monthlyContribution = parseFloat(portfolioMonthlyContributionInput.value);
+                    const cagr = parseFloat(portfolioCagrInput.value);
+                    const stepUpPercentage = parseFloat(portfolioStepUpPercentageInput.value) || 0;
+                    if (isNaN(monthlyContribution) || monthlyContribution <= 0) {
+                        alertMessage("Please enter a valid monthly contribution.");
+                        return;
+                    }
+                    if (isNaN(cagr) || cagr <= 0) {
+                        alertMessage("Please enter a valid Expected CAGR.");
+                        return;
+                    }
+                    newFund = { ...newFund, fundType, monthlyContribution, cagr, stepUpPercentage };
+                    portfolioMonthlyContributionInput.value = '';
+                    portfolioCagrInput.value = '';
+                    portfolioStepUpPercentageInput.value = '';
+                }
+                
+                portfolioFundNameInput.value = '';
+                portfolio.push(newFund);
+                renderPortfolioList();
+                portfolioResultsContainer.innerHTML = '';
+                portfolioBreakdownSection.innerHTML = '';
+            });
+
+            portfolioList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-fund')) {
+                    const index = parseInt(e.target.dataset.index);
+                    if (!isNaN(index)) {
+                        portfolio.splice(index, 1);
+                        renderPortfolioList();
+                        portfolioResultsContainer.innerHTML = '';
+                        portfolioBreakdownSection.innerHTML = '';
+                        taxDetailsElem.classList.add('hidden');
+                    }
+                }
+            });
+
+            calculatePortfolioButton.addEventListener('click', calculatePortfolio);
+            exportExcelButton.addEventListener('click', exportToExcel);
+            generateLineageButton.addEventListener('click', generatePortfolioLineage);
+            
+            // Initial UI setup on page load
+            updateSingleUI();
+            togglePortfolioUIFields();
+        });
+    </script>
+</body>
+</html>
