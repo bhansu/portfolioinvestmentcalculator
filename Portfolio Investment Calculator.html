@@ -87,6 +87,28 @@
 
         <!-- Single Investment Calculator Section -->
         <div id="single-calculator-section" class="space-y-6">
+            <!-- Guidelines for Lump Sum & SIP -->
+            <div id="lumpsum-guide" class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400 text-blue-800 text-sm md:text-base">
+                <h3 class="font-bold mb-2">How to use the Lump Sum Calculator:</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>Enter a one-time investment amount.</li>
+                    <li>Select the type of fund you are investing in.</li>
+                    <li>Provide the historical CAGR for your fund or your expected rate of return.</li>
+                    <li>Enter the total period of your investment in years.</li>
+                    <li>Click **Calculate** to see your projected future value and net returns.</li>
+                </ul>
+            </div>
+            <div id="sip-guide" class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400 text-blue-800 text-sm md:text-base hidden">
+                <h3 class="font-bold mb-2">How to use the Monthly SIP Calculator:</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>Enter your monthly investment amount.</li>
+                    <li>Select a fund type and provide the expected CAGR.</li>
+                    <li>Optionally, enter a Step-Up percentage to automatically increase your SIP annually.</li>
+                    <li>Enter the total investment period in years.</li>
+                    <li>Click **Calculate** to see your projected future value and returns.</li>
+                </ul>
+            </div>
+
             <div id="calculator-form" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="input-group">
@@ -163,6 +185,18 @@
 
         <!-- Portfolio Calculator Section -->
         <div id="portfolio-calculator-section" class="hidden space-y-6">
+            <!-- Guidelines for Portfolio -->
+            <div id="portfolio-guide" class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400 text-blue-800 text-sm md:text-base">
+                <h3 class="font-bold mb-2">How to use the Portfolio Calculator:</h3>
+                <ul class="list-disc list-inside space-y-1">
+                    <li>First, set the **Portfolio Duration** and your personal **Tax Slab Rate**.</li>
+                    <li>Use the "Add an Investment" form to add each individual fund to your portfolio.</li>
+                    <li>Click **Add Fund** for each investment you want to include.</li>
+                    <li>Once all funds are added, click **Calculate Portfolio** to see the combined results.</li>
+                    <li>You can also use the **Export to Excel** or **Generate Portfolio Lineage** buttons for a detailed report.</li>
+                </ul>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div class="input-group">
                     <label for="portfolio-duration" class="text-gray-700 font-medium">Portfolio Duration (Years)</label>
@@ -261,6 +295,10 @@
             const portfolioTab = document.getElementById('portfolio-tab');
             const singleCalculatorSection = document.getElementById('single-calculator-section');
             const portfolioCalculatorSection = document.getElementById('portfolio-calculator-section');
+            const lumpsumGuide = document.getElementById('lumpsum-guide');
+            const sipGuide = document.getElementById('sip-guide');
+            const portfolioGuide = document.getElementById('portfolio-guide');
+
 
             const investmentAmountInput = document.getElementById('investment-amount');
             const fundTypeSelect = document.getElementById('fund-type');
@@ -764,6 +802,9 @@
                     document.querySelector('label[for="investment-amount"]').textContent = "Monthly SIP Amount (₹)";
                     investmentAmountInput.placeholder = "e.g., 5000 (Monthly SIP)";
                     fundTypeSelect.value = 'equity'; // Set a default valid fund type for SIP
+                    
+                    lumpsumGuide.classList.add('hidden');
+                    sipGuide.classList.remove('hidden');
                 } else {
                     sipTab.classList.remove('bg-blue-100', 'text-gray-500');
                     sipTab.classList.add('bg-gray-200', 'text-gray-500');
@@ -771,6 +812,9 @@
                     lumpsumTab.classList.add('bg-blue-100', 'text-gray-800');
                     document.querySelector('label[for="investment-amount"]').textContent = "Lump Sum Amount (₹)";
                     investmentAmountInput.placeholder = "e.g., 50000 (Lump Sum)";
+
+                    lumpsumGuide.classList.remove('hidden');
+                    sipGuide.classList.add('hidden');
                 }
                 
                 toggleSingleUIFields();
@@ -1096,6 +1140,11 @@
                 sipTab.classList.add('bg-gray-200', 'text-gray-500');
                 portfolioTab.classList.remove('bg-gray-200', 'text-gray-500');
                 portfolioTab.classList.add('bg-blue-100', 'text-gray-800');
+                
+                lumpsumGuide.classList.add('hidden');
+                sipGuide.classList.add('hidden');
+                portfolioGuide.classList.remove('hidden');
+                
                 clearSingleCalculatorData();
                 portfolioResultsContainer.innerHTML = '';
             });
